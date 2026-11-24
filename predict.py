@@ -11,8 +11,8 @@ REMOVED_FEATURES = []
 PARAMS = {
     "iterations": 5000,
     "learning_rate": 0.02,
-    "depth": 6,
-    "l2_leaf_reg": 5,
+    "depth": 7,
+    "l2_leaf_reg": 9,
     "loss_function": "RMSE",
     "random_seed": 42,
     "verbose": 100,
@@ -42,7 +42,7 @@ print(len(cat_cols))
 
 x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=42, stratify=training_data["hours_bucket"])
 model = CatBoostRegressor(**PARAMS)
-model.fit(x_train, y_train, cat_features=cat_cols, eval_set=(x_val, y_val), early_stopping_rounds=200, use_best_model=True)
+model.fit(x_train, y_train, cat_features=cat_cols, eval_set=(x_val, y_val), early_stopping_rounds=300, use_best_model=True)
 val_predictions = numpy.maximum(model.predict(x_val), 0)
 RMSLE = numpy.sqrt(numpy.mean((val_predictions - y_val) ** 2))
 print(f"Validation RMSLE: {RMSLE}")
