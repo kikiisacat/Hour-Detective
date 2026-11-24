@@ -16,7 +16,8 @@ PARAMS = {
     "loss_function": "RMSE",
     "random_seed": 42,
     "verbose": 100,
-    "task_type": "CPU"
+    "task_type": "CPU",
+    "allow_writing_files": False
 }
 
 training_data = pandas.read_csv("train.csv")
