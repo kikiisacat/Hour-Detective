@@ -62,4 +62,4 @@ if testing == True:
     final_model.fit(x, y, cat_features=cat_cols)
     predictions = numpy.clip(numpy.expm1(final_model.predict(x_test)), 0, 140.7)
     submission = pandas.DataFrame({"project_id": test["project_id"], "hours_spent": predictions})
-    submission.to_csv("prediction.csv", index=False)
+    submission.to_csv("predictions.csv", index=False)
