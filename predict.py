@@ -8,7 +8,7 @@ from sklearn.model_selection import StratifiedKFold
 from catboost import CatBoostRegressor
 REMOVED_FEATURES = []
 
-seeds = [42, 123, 456, 789, 101112]
+seeds = [42]
 
 PARAMS = {
     "iterations": 5000,
@@ -59,7 +59,7 @@ for fold, (train_idx, val_idx) in enumerate(kf.split(x, training_data["hours_buc
         params["random_seed"] = seed
         model = CatBoostRegressor(**params)
         model.fit(x_train, y_train, cat_features=cat_cols, eval_set=(x_val, y_val), early_stopping_rounds=300, use_best_model=True)
-        seed_predictions.append(numpy.maximum(model.predict(x_val), 0))
+        seed_predictions.append(model.predict(x_val))
         best_iterations.append(model.get_best_iteration()+1)
 
     val_predictions = numpy.maximum(numpy.mean(seed_predictions, axis=0), 0)
