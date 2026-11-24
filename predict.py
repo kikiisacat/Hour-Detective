@@ -42,31 +42,53 @@ print(len(x))
 print(x.shape[1])
 print(len(cat_cols))
 
-kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seeds)
-score = []
+kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+scores = []
 best_iterations = []
 out_of_fold_predictions = numpy.zeros(len(x))
 
-x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=seeds, stratify=training_data["hours_bucket"])
-model = CatBoostRegressor(**PARAMS)
-model.fit(x_train, y_train, cat_features=cat_cols, eval_set=(x_val, y_val), early_stopping_rounds=300, use_best_model=True)
-val_predictions = numpy.maximum(model.predict(x_val), 0)
-RMSLE = numpy.sqrt(numpy.mean((val_predictions - y_val) ** 2))
-print(f"Validation RMSLE: {RMSLE}")
-print(f"Best iteration: {model.get_best_iteration()}")
+for fold, (train_idx, val_idx) in enumerate(kf.split(x, training_data["hours_bucket"])):
+    print(f"Fold {fold + 1}")
+    x_train, x_val = x.iloc[train_idx], x.iloc[val_idx]
+    y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
+    seed_predictions = []
 
-importances = pandas.Series(model.get_feature_importance(), index=x.columns).sort_values(ascending=False)
-print(importances)
+    for seed in seeds: 
+        print(seed)
+        params = PARAMS.copy()
+        params["random_seed"] = seed
+        model = CatBoostRegressor(**params)
+        model.fit(x_train, y_train, cat_features=cat_cols, eval_set=(x_val, y_val), early_stopping_rounds=300, use_best_model=True)
+        seed_predictions.append(numpy.maximum(model.predict(x_val), 0))
+        best_iterations.append(model.get_best_iteration()+1)
 
-testing = True
+    val_predictions = numpy.maximum(numpy.mean(seed_predictions, axis=0), 0)
+    out_of_fold_predictions[val_idx] = val_predictions
+    RMSLE = numpy.sqrt(numpy.mean((val_predictions - y_val) ** 2))
+    scores.append(RMSLE)
+    print(fold, RMSLE)
+
+print("Mean RMSLE:", numpy.mean(scores))
+print("Fold scores:", scores)
+print("Overall RMSLE:", numpy.sqrt(numpy.mean((out_of_fold_predictions - y) ** 2)))
+final_iterations = int(numpy.median(best_iterations))
+print("Final iterations:", final_iterations)
+
+testing = os.path.exists("test.csv")
 
 if testing == True:
-    test = pandas.read_csv("test.csv")
-    x_test = preprocess(test[x.columns])
-    final_params = PARAMS.copy()
-    final_params["iterations"] = max(1, model.get_best_iteration() + 1)
-    final_model = CatBoostRegressor(**final_params)
-    final_model.fit(x, y, cat_features=cat_cols)
-    predictions = numpy.clip(numpy.expm1(final_model.predict(x_test)), 0, 140.7)
-    submission = pandas.DataFrame({"project_id": test["project_id"], "hours_spent": predictions})
+    test_data = pandas.read_csv("test.csv")
+    x_test = preprocess(test_data[x.columns])
+    all_predictions = []
+    
+    for seed in seeds:
+        final_params = PARAMS.copy()
+        final_params["random_seed"] = seed
+        final_params["iterations"] = final_iterations
+
+        final_model = CatBoostRegressor(**final_params)
+        final_model.fit(x, y, cat_features=cat_cols)
+        all_predictions.append(final_model.predict(x_test))
+    predictions = numpy.maximum(numpy.expm1(numpy.mean(all_predictions, axis=0)), 0)
+    submission = pandas.DataFrame({"project_id": test_data["project_id"], "hours_spent": predictions})
     submission.to_csv("predictions.csv", index=False)
