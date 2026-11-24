@@ -51,7 +51,7 @@ print(f"Best iteration: {model.get_best_iteration()}")
 importances = pandas.Series(model.get_feature_importance(), index=x.columns).sort_values(ascending=False)
 print(importances)
 
-testing = False
+testing = True
 
 if testing == True:
     test = pandas.read_csv("test.csv")
