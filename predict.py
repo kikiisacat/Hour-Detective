@@ -3,11 +3,42 @@ import os
 import numpy
 import pandas
 
+REMOVED_FEATURES = []
+
 PARAMS = {
     "iterations": 1000,
     "learning_rate": 0.02,
     "depth": 6,
     "l2_leaf_reg": 5,
-    "loss_function": "RM
-
+    "loss_function": "RMSLE",
+    "random_seed": 42,
+    "verbose": 100,
+    "task_type": "CPU"
 }
+
+training_data = pandas.read_csv("train.csv")
+
+DROP_COLUMNS = ["project_id", "hours_spent", "log_hours", "hours_bucket"] + REMOVED_FEATURES
+
+x = training_data.drop(columns=DROP_COLUMNS, errors="ignore")
+y = numpy.log1p(training_data["hours_spent"])
+
+cat_cols = x.select_dtypes(include=["object", "bool", "category", "string"]).columns.to_list()
+
+def preprocess(df):
+    df = df.copy()
+    for col in cat_cols:
+        df[col] = df[col].astype("string")
+        df[col] = df[col].fillna("missing").astype(str)
+    return df
+
+x = preprocess(x)
+print(len(x))
+print(x.shape[1])
+print(len(cat_cols))
+
+x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=42, stratify=train["hours_bucket"])
+model = CatBoostRegressor(**PARAMS)
+
+model.fit(x_train, y_train, cat_features=cat_cols, eval_set=(x_val, y_val), early_stopping_rounds=200, use_best_model=True)
+val_predictions = numpy.maximum(model.predict(x_val), 0)
