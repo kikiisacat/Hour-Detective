@@ -4,9 +4,11 @@ import numpy
 import pandas
 
 from sklearn.model_selection import train_test_split
+from sklearn.model_selection import StratifiedKFold
 from catboost import CatBoostRegressor
-
 REMOVED_FEATURES = []
+
+seeds = [42, 123, 456, 789, 101112]
 
 PARAMS = {
     "iterations": 5000,
@@ -14,7 +16,6 @@ PARAMS = {
     "depth": 7,
     "l2_leaf_reg": 9,
     "loss_function": "RMSE",
-    "random_seed": 42,
     "verbose": 100,
     "task_type": "CPU",
     "allow_writing_files": False
@@ -41,7 +42,12 @@ print(len(x))
 print(x.shape[1])
 print(len(cat_cols))
 
-x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=42, stratify=training_data["hours_bucket"])
+kf = StratifiedKFold(n_splits=5, shuffle=True, random_state=seeds)
+score = []
+best_iterations = []
+out_of_fold_predictions = numpy.zeros(len(x))
+
+x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.2, random_state=seeds, stratify=training_data["hours_bucket"])
 model = CatBoostRegressor(**PARAMS)
 model.fit(x_train, y_train, cat_features=cat_cols, eval_set=(x_val, y_val), early_stopping_rounds=300, use_best_model=True)
 val_predictions = numpy.maximum(model.predict(x_val), 0)
